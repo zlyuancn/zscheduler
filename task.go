@@ -253,6 +253,7 @@ func (t *Task) execute(errCallback ErrCallback) error {
 
 func (t *Task) ChangeTrigger(trigger ITrigger) {
 	t.mx.Lock()
+	trigger.ResetClock()
 	t.trigger = trigger
 	t.mx.Unlock()
 }
