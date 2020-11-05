@@ -9,6 +9,8 @@
 package zscheduler
 
 import (
+	"errors"
+
 	"github.com/zlyuancn/zgpool"
 	"github.com/zlyuancn/zlog"
 )
@@ -45,6 +47,16 @@ func WithGoroutinePool(threadCount int, jobQueueSize int) Option {
 			return
 		}
 		o.gpool = zgpool.NewPool(threadCount, jobQueueSize)
+	}
+}
+
+// 自定义通告员, 不能传入nil
+func WithNotifier(notifier INotifier) Option {
+	return func(o *Options) {
+		if notifier == nil {
+			panic(errors.New("notifier must not nil"))
+		}
+		o.notifier = notifier
 	}
 }
 
