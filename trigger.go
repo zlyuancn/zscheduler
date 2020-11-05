@@ -33,8 +33,19 @@ func (t TriggerType) String() string {
 		return "cron"
 	case OnceTriggerType:
 		return "once"
+	default:
+		if desc, ok := triggerTypeDescribeMap[t]; ok {
+			return desc
+		}
 	}
 	return fmt.Sprintf("undefined trigger type: %d", t)
+}
+
+var triggerTypeDescribeMap = make(map[TriggerType]string)
+
+// 注册触发器类型描述
+func RegistryTriggerTypeDescribe(t TriggerType, desc string) {
+	triggerTypeDescribeMap[t] = desc
 }
 
 type ITrigger interface {
