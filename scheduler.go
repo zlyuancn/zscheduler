@@ -166,7 +166,9 @@ func (m *Scheduler) Start() {
 	if !atomic.CompareAndSwapInt32((*int32)(&m.runState), int32(StoppedState), int32(StartingState)) {
 		return
 	}
-	m.log.Info("正在启动调度器")
+	if m.log != nil {
+		m.log.Info("正在启动调度器")
+	}
 	m.notifier.Starting()
 	atomic.StoreInt32((*int32)(&m.pause), int32(ResumingState))
 
@@ -174,20 +176,26 @@ func (m *Scheduler) Start() {
 
 	atomic.StoreInt32((*int32)(&m.pause), int32(StartedState))
 	atomic.StoreInt32((*int32)(&m.runState), int32(StartedState))
-	m.log.Info("已启动调度器")
+	if m.log != nil {
+		m.log.Info("已启动调度器")
+	}
 	m.notifier.Started()
 }
 func (m *Scheduler) Stop() {
 	if !atomic.CompareAndSwapInt32((*int32)(&m.runState), int32(StartedState), int32(StoppingState)) {
 		return
 	}
-	m.log.Info("正在关闭调度器")
+	if m.log != nil {
+		m.log.Info("正在关闭调度器")
+	}
 	m.notifier.Stopping()
 	m.closeChan <- struct{}{}
 	<-m.closeChan
 
 	atomic.StoreInt32((*int32)(&m.runState), int32(StoppedState))
-	m.log.Info("已关闭调度器")
+	if m.log != nil {
+		m.log.Info("已关闭调度器")
+	}
 	m.notifier.Stopped()
 }
 func (m *Scheduler) Pause() {
@@ -196,7 +204,9 @@ func (m *Scheduler) Pause() {
 	}
 
 	if atomic.CompareAndSwapInt32((*int32)(&m.pause), int32(StartedState), int32(PausedState)) {
-		m.log.Info("暂停调度器")
+		if m.log != nil {
+			m.log.Info("暂停调度器")
+		}
 		m.notifier.Paused()
 	}
 }
@@ -211,7 +221,9 @@ func (m *Scheduler) Resume() {
 		// 设为启动状态(恢复完成)
 		// 这里使用cas是为了防止这个时候用户调用了Stop()+Start()后状态被更改
 		if atomic.CompareAndSwapInt32((*int32)(&m.pause), int32(ResumingState), int32(StartedState)) {
-			m.log.Info("恢复调度器")
+			if m.log != nil {
+				m.log.Info("恢复调度器")
+			}
 			m.notifier.Resume()
 		}
 	}
@@ -324,7 +336,9 @@ func (m *Scheduler) triggerTask(t ITask) {
 			m.execute(t)
 		})
 		if !add {
-			m.log.Warn("任务生成失败, 因为队列已满", zap.String("name", t.Name()))
+			if m.log != nil {
+				m.log.Warn("任务生成失败, 因为队列已满", zap.String("name", t.Name()))
+			}
 			m.notifier.TryAddJobFail(t)
 		}
 	}
@@ -336,18 +350,26 @@ func (m *Scheduler) execute(t ITask) {
 		return
 	}
 
-	m.log.Info("开始执行任务", zap.String("name", t.Name()))
+	if m.log != nil {
+		m.log.Info("开始执行任务", zap.String("name", t.Name()))
+	}
 	m.notifier.JobStart(t)
 	result := t.Trigger(func(err error) {
-		m.log.Warn("任务执行失败, 即将重试", zap.String("name", t.Name()), zap.Error(err))
+		if m.log != nil {
+			m.log.Warn("任务执行失败, 即将重试", zap.String("name", t.Name()), zap.Error(err))
+		}
 		m.notifier.JobErr(t, err)
 	})
 	if result.ExecuteSuccess {
 		atomic.AddUint64(&m.successNum, 1)
-		m.log.Info("任务执行成功", zap.String("name", t.Name()))
+		if m.log != nil {
+			m.log.Info("任务执行成功", zap.String("name", t.Name()))
+		}
 	} else {
 		atomic.AddUint64(&m.failureNum, 1)
-		m.log.Warn("任务执行失败", zap.String("name", t.Name()), zap.Error(result.ExecuteErr))
+		if m.log != nil {
+			m.log.Warn("任务执行失败", zap.String("name", t.Name()), zap.Error(result.ExecuteErr))
+		}
 	}
 	m.notifier.JobEnd(t, result)
 }
