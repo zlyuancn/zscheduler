@@ -86,19 +86,19 @@ func (n *Notifier) TryAddJobFail(task ITask) {
 		o.TryAddJobFail(task)
 	})
 }
-func (n *Notifier) JobStart(task ITask) {
+func (n *Notifier) JobStart(job IJob) {
 	n.eachObservers(func(o IObserver) {
-		o.JobStart(task)
+		o.JobStart(job)
 	})
 }
-func (n *Notifier) JobErr(task ITask, err error) {
+func (n *Notifier) JobErr(job IJob, err error) {
 	n.eachObservers(func(o IObserver) {
-		o.JobErr(task, err)
+		o.JobErr(job, err)
 	})
 }
-func (n *Notifier) JobEnd(task ITask, result *ExecuteInfo) {
+func (n *Notifier) JobEnd(job IJob, executeInfo *ExecuteInfo) {
 	n.eachObservers(func(o IObserver) {
-		o.JobEnd(task, result)
+		o.JobEnd(job, executeInfo)
 	})
 }
 

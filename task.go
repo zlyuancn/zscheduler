@@ -18,11 +18,13 @@ import (
 
 const TimeLayout = "2006-01-02 15:04:05"
 
-type Job func() (err error)
+type Handler func(job IJob) (err error)
 
 type ITask interface {
 	// 返回任务名
 	Name() string
+	// 获取handler
+	Handler() Handler
 	// 返回启用状态
 	Enable() bool
 	// 任务信息
@@ -35,7 +37,7 @@ type ITask interface {
 	// 心跳, 返回是否触发执行
 	HeartBeat(t time.Time) (trigger bool)
 	// 立即触发执行, 阻塞等待执行结束
-	Trigger(errCallback ErrCallback) *ExecuteInfo
+	Trigger(job IJob, errCallback ErrCallback) *ExecuteInfo
 	// 重置计时器
 	ResetClock()
 
@@ -64,24 +66,12 @@ type TaskInfo struct {
 	ExecutorInfo *ExecutorInfo
 }
 
-// 执行信息
-type ExecuteInfo struct {
-	// 执行开始时间
-	ExecuteStartTime time.Time
-	// 执行结束时间
-	ExecuteEndTime time.Time
-	// 是否执行成功
-	ExecuteSuccess bool
-	// 执行的错误, 如果最后一次执行没有错误那么值为nil
-	ExecuteErr error
-}
-
 type Task struct {
 	name       string
 	successNum uint64
 	failureNum uint64
 
-	job             Job
+	handler         Handler
 	lastExecuteInfo *ExecuteInfo
 
 	trigger  ITrigger
@@ -94,18 +84,18 @@ type Task struct {
 type TaskConfig struct {
 	Trigger  ITrigger
 	Executor IExecutor
-	Job      Job
+	Handler  Handler
 	Enable   bool
 }
 
 // 创建一个任务
-func NewTask(name string, expression string, job Job, enable ...bool) ITask {
+func NewTask(name string, expression string, handler Handler, enable ...bool) ITask {
 	trigger := NewCronTrigger(expression)
 	executor := NewExecutor(0, 0)
 	return NewTaskOfConfig(name, TaskConfig{
 		Trigger:  trigger,
 		Executor: executor,
-		Job:      job,
+		Handler:  handler,
 		Enable:   len(enable) == 0 || enable[0],
 	})
 }
@@ -116,7 +106,7 @@ func NewTaskOfConfig(name string, config TaskConfig) ITask {
 		name:     name,
 		trigger:  config.Trigger,
 		executor: config.Executor,
-		job:      config.Job,
+		handler:  config.Handler,
 	}
 	t.SetEnable(config.Enable)
 	return t
@@ -124,6 +114,9 @@ func NewTaskOfConfig(name string, config TaskConfig) ITask {
 
 func (t *Task) Name() string {
 	return t.name
+}
+func (t *Task) Handler() Handler {
+	return t.handler
 }
 func (t *Task) Enable() bool {
 	return atomic.LoadInt32(&t.enable) == 1
@@ -216,12 +209,12 @@ func (t *Task) HeartBeat(tt time.Time) bool {
 
 	return t.Enable()
 }
-func (t *Task) Trigger(errCallback ErrCallback) *ExecuteInfo {
+func (t *Task) Trigger(job IJob, errCallback ErrCallback) *ExecuteInfo {
 	info := &ExecuteInfo{
 		ExecuteStartTime: time.Now(),
 	}
 
-	if err := t.execute(errCallback); err != nil {
+	if err := t.execute(job, errCallback); err != nil {
 		info.ExecuteErr = err
 		atomic.AddUint64(&t.failureNum, 1)
 	} else {
@@ -244,11 +237,11 @@ func (t *Task) ResetClock() {
 }
 
 // 执行
-func (t *Task) execute(errCallback ErrCallback) error {
+func (t *Task) execute(job IJob, errCallback ErrCallback) error {
 	t.mx.Lock()
 	executor := t.executor
 	t.mx.Unlock()
-	return executor.Do(t.job, errCallback)
+	return executor.Do(job, errCallback)
 }
 
 func (t *Task) ChangeTrigger(trigger ITrigger) {

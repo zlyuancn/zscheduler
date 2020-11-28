@@ -73,7 +73,7 @@
 scheduler := zscheduler.NewScheduler()
 
 // 创建一个任务
-task := zscheduler.NewTask("task1", "@every 1s", func() (err error) {
+task := zscheduler.NewTask("task1", "@every 1s", func(job zscheduler.IJob) (err error) {
     fmt.Println("执行", time.Now())
     return nil
 })

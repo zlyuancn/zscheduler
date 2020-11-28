@@ -17,11 +17,11 @@ import (
 
 var OutOfMaxSyncExecuteCount = errors.New("超出最大同步执行数")
 
-type ErrCallback func(err error)
+type ErrCallback func(job IJob, err error)
 
 type IExecutor interface {
 	// 执行
-	Do(job Job, errCallback ErrCallback) error
+	Do(job IJob, errCallback ErrCallback) error
 	// 等待任务执行完毕
 	Wait()
 	// 返回是否正在执行任务
@@ -78,7 +78,7 @@ func (w *Executor) ExecutorInfo() *ExecutorInfo {
 }
 
 // 执行, 如果已经达到最大同步执行任务数则会忽略这个任务
-func (w *Executor) Do(job Job, errCallback ErrCallback) error {
+func (w *Executor) Do(job IJob, errCallback ErrCallback) error {
 	w.mx.Lock()
 	if w.maxSyncExecuteCount > 0 && w.syncExecuteCount >= w.maxSyncExecuteCount {
 		w.mx.Unlock()
@@ -89,8 +89,8 @@ func (w *Executor) Do(job Job, errCallback ErrCallback) error {
 	w.syncExecuteCount++
 	w.mx.Unlock()
 
-	wrapJob := w.wrapExecute(job)
-	err := w.doRetry(wrapJob, w.retryInterval, w.maxRetryCount, errCallback)
+	handler := w.wrapExecute(job.Task().Handler())
+	err := w.doRetry(handler, job, w.retryInterval, w.maxRetryCount, errCallback)
 
 	w.mx.Lock()
 	w.syncExecuteCount--
@@ -113,8 +113,8 @@ func (w *Executor) IsRunning() bool {
 }
 
 // 包装执行, 拦截panic
-func (w *Executor) wrapExecute(job Job) Job {
-	return func() (err error) {
+func (w *Executor) wrapExecute(handler Handler) Handler {
+	return func(job IJob) (err error) {
 		defer func() {
 			e := recover()
 			switch v := e.(type) {
@@ -128,15 +128,15 @@ func (w *Executor) wrapExecute(job Job) Job {
 			}
 		}()
 
-		err = job()
+		err = handler(job)
 		return
 	}
 }
 
 // 执行一个函数
-func (w *Executor) doRetry(job Job, interval time.Duration, retryCount int64, errCallback ErrCallback) (err error) {
+func (w *Executor) doRetry(handler Handler, job IJob, interval time.Duration, retryCount int64, errCallback ErrCallback) (err error) {
 	for {
-		if err = job(); err == nil || retryCount == 0 {
+		if err = handler(job); err == nil || retryCount == 0 {
 			// 这里不需要错误回调
 			return
 		}
@@ -144,7 +144,7 @@ func (w *Executor) doRetry(job Job, interval time.Duration, retryCount int64, er
 		retryCount--
 
 		if errCallback != nil {
-			errCallback(err)
+			errCallback(job, err)
 		}
 
 		if interval > 0 {

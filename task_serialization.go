@@ -48,7 +48,7 @@ func SerializeTask(task ITask) string {
 }
 
 // 从序列化文本中加载Task
-func NewTaskOfSerializeText(text string, job Job, enable ...bool) (ITask, error) {
+func NewTaskOfSerializeText(text string, handler Handler, enable ...bool) (ITask, error) {
 	stc := new(serializeTaskConfig)
 	err := jsoniter.UnmarshalFromString(text, stc)
 	if err != nil {
@@ -78,7 +78,7 @@ func NewTaskOfSerializeText(text string, job Job, enable ...bool) (ITask, error)
 	taskConfig := TaskConfig{
 		Trigger:  trigger,
 		Executor: executor,
-		Job:      job,
+		Handler:  handler,
 		Enable:   len(enable) == 0 || enable[0],
 	}
 	return NewTaskOfConfig(stc.Name, taskConfig), nil

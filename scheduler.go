@@ -350,17 +350,20 @@ func (m *Scheduler) execute(t ITask) {
 		return
 	}
 
+	job := newJob(t)
+	m.notifier.JobStart(job)
 	if m.log != nil {
 		m.log.Info("开始执行任务", zap.String("name", t.Name()))
 	}
-	m.notifier.JobStart(t)
-	result := t.Trigger(func(err error) {
+
+	executeInfo := t.Trigger(job, func(job IJob, err error) {
 		if m.log != nil {
 			m.log.Warn("任务执行失败, 即将重试", zap.String("name", t.Name()), zap.Error(err))
 		}
-		m.notifier.JobErr(t, err)
+		m.notifier.JobErr(job, err)
 	})
-	if result.ExecuteSuccess {
+
+	if executeInfo.ExecuteSuccess {
 		atomic.AddUint64(&m.successNum, 1)
 		if m.log != nil {
 			m.log.Info("任务执行成功", zap.String("name", t.Name()))
@@ -368,10 +371,10 @@ func (m *Scheduler) execute(t ITask) {
 	} else {
 		atomic.AddUint64(&m.failureNum, 1)
 		if m.log != nil {
-			m.log.Warn("任务执行失败", zap.String("name", t.Name()), zap.Error(result.ExecuteErr))
+			m.log.Warn("任务执行失败", zap.String("name", t.Name()), zap.Error(executeInfo.ExecuteErr))
 		}
 	}
-	m.notifier.JobEnd(t, result)
+	m.notifier.JobEnd(job, executeInfo)
 }
 
 // 重置计时器
