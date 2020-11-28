@@ -81,9 +81,19 @@ func (n *Notifier) TriggerTask(task ITask) {
 		o.TriggerTask(task)
 	})
 }
+func (n *Notifier) TryAddJobFail(task ITask) {
+	n.eachObservers(func(o IObserver) {
+		o.TryAddJobFail(task)
+	})
+}
 func (n *Notifier) JobStart(task ITask) {
 	n.eachObservers(func(o IObserver) {
 		o.JobStart(task)
+	})
+}
+func (n *Notifier) JobErr(task ITask, err error) {
+	n.eachObservers(func(o IObserver) {
+		o.JobErr(task, err)
 	})
 }
 func (n *Notifier) JobEnd(task ITask, result *ExecuteInfo) {

@@ -29,8 +29,12 @@ type IObserver interface {
 
 	// 触发任务
 	TriggerTask(task ITask)
+	// 尝试添加job失败, 一般为队列已满导致的
+	TryAddJobFail(task ITask)
 	// job开始
 	JobStart(task ITask)
+	// job错误, 只有允许重试的task在执行job失败时会通知, 最后一次重试不会通知
+	JobErr(task ITask, err error)
 	// job结束
 	JobEnd(task ITask, info *ExecuteInfo)
 }
@@ -50,5 +54,7 @@ func (*Observer) AddTask(task ITask)     {}
 func (*Observer) RemoveTask(name string) {}
 
 func (*Observer) TriggerTask(task ITask)                 {}
+func (*Observer) TryAddJobFail(task ITask)               {}
 func (*Observer) JobStart(task ITask)                    {}
+func (*Observer) JobErr(task ITask, err error)           {}
 func (*Observer) JobEnd(task ITask, result *ExecuteInfo) {}

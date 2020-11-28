@@ -325,6 +325,7 @@ func (m *Scheduler) triggerTask(t ITask) {
 		})
 		if !add {
 			m.log.Warn("任务生成失败, 因为队列已满", zap.String("name", t.Name()))
+			m.notifier.TryAddJobFail(t)
 		}
 	}
 }
@@ -339,6 +340,7 @@ func (m *Scheduler) execute(t ITask) {
 	m.notifier.JobStart(t)
 	result := t.Trigger(func(err error) {
 		m.log.Warn("任务执行失败, 即将重试", zap.String("name", t.Name()), zap.Error(err))
+		m.notifier.JobErr(t, err)
 	})
 	if result.ExecuteSuccess {
 		atomic.AddUint64(&m.successNum, 1)
