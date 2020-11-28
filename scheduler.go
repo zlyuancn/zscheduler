@@ -172,9 +172,9 @@ func (m *Scheduler) Start() {
 
 	m.start()
 
-	m.log.Info("已启动调度器")
 	atomic.StoreInt32((*int32)(&m.pause), int32(StartedState))
 	atomic.StoreInt32((*int32)(&m.runState), int32(StartedState))
+	m.log.Info("已启动调度器")
 	m.notifier.Started()
 }
 func (m *Scheduler) Stop() {
@@ -186,8 +186,8 @@ func (m *Scheduler) Stop() {
 	m.closeChan <- struct{}{}
 	<-m.closeChan
 
-	m.log.Info("已关闭调度器")
 	atomic.StoreInt32((*int32)(&m.runState), int32(StoppedState))
+	m.log.Info("已关闭调度器")
 	m.notifier.Stopped()
 }
 func (m *Scheduler) Pause() {
@@ -207,11 +207,11 @@ func (m *Scheduler) Resume() {
 
 	if atomic.CompareAndSwapInt32((*int32)(&m.pause), int32(PausedState), int32(ResumingState)) {
 		m.resetClock()
-		m.log.Info("恢复调度器")
 
 		// 设为启动状态(恢复完成)
 		// 这里使用cas是为了防止这个时候用户调用了Stop()+Start()后状态被更改
 		if atomic.CompareAndSwapInt32((*int32)(&m.pause), int32(ResumingState), int32(StartedState)) {
+			m.log.Info("恢复调度器")
 			m.notifier.Resume()
 		}
 	}
