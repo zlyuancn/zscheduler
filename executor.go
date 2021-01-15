@@ -124,7 +124,7 @@ func (w *Executor) wrapExecute(handler Handler) Handler {
 			case string:
 				err = errors.New(v)
 			default:
-				err = errors.New(fmt.Sprint(err))
+				err = errors.New(fmt.Sprint(e))
 			}
 		}()
 
